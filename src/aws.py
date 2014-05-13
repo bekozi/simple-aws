@@ -7,15 +7,26 @@ import time
 
 
 class AwsManager(object):
+    """
+    Configuration file structure:
 
-    def __init__(self, conf_path, filtered=True, only_running=True):
+    [:class:`AwsManager.section_title`]
+    aws_access_key_id =
+    aws_secret_access_key =
+    image_id =
+    instance_type =
+    region =
+    security_group =
+    """
+
+    def __init__(self, conf_path, filtered=True, only_running=True, section_title='aws'):
         self.conf_path = conf_path
         self.filtered = filtered
         self.only_running = only_running
         self._conn = None
         self._parser = SafeConfigParser()
         self._parser.read(self.conf_path)
-        self._cfg = dict(self._parser.items('aws'))
+        self._cfg = dict(self._parser.items(section_title))
 
     @property
     def conn(self):
@@ -75,8 +86,8 @@ class AwsManager(object):
     def _get_aws_connection_(self):
         region = self._cfg['region']
 
-        aws_access_key_id = self._cfg['access_key_id']
-        aws_secret_access_key = self._cfg['secret_access_key']
+        aws_access_key_id = self._cfg['aws_access_key_id']
+        aws_secret_access_key = self._cfg['aws_secret_access_key']
 
         conn = boto.ec2.connect_to_region(region, aws_access_key_id=aws_access_key_id, aws_secret_access_key=aws_secret_access_key)
 
