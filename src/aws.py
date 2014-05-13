@@ -1,8 +1,5 @@
 from ConfigParser import SafeConfigParser
-import os
 import boto.ec2
-from boto.ec2.autoscale import LaunchConfiguration
-import datetime
 import time
 
 
