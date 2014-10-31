@@ -1,0 +1,7 @@
+[aws]
+aws_access_key_id =
+aws_secret_access_key =
+image_id =
+instance_type =
+region =
+security_group =

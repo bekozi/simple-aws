@@ -51,10 +51,10 @@ class AwsManager(object):
         else:
             return(ret)
 
-    def launch_new_instance(self, name, wait=True):
+    def launch_new_instance(self, name, instance_type=None, wait=True):
         image_id = self._cfg['image_id']
         security_group = self._cfg['security_group']
-        instance_type = self._cfg['instance_type']
+        instance_type = instance_type or self._cfg['instance_type']
         key_name = self._cfg['key_name']
 
         if not self._get_is_unique_tag_(name, 'Name'):

@@ -4,7 +4,7 @@ from aws import AwsManager
 import os
 
 
-CONF_PATH = os.path.join(os.path.expanduser('~/.config/ocgis.cfg'))
+CONF_PATH = os.path.join(os.path.expanduser('~/.config/simple-aws.conf'))
 
 
 class TestAwsManager(unittest.TestCase):
