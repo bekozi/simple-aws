@@ -37,6 +37,17 @@ class TestAwsManager(unittest.TestCase):
         finally:
             i1.terminate()
 
+    def test_start_instance_by_name(self):
+        m = AwsManager(CONF_PATH)
+        i1 = m.launch_new_instance('_foo_name_test', wait=True)
+        try:
+            i1.stop()
+            AwsManager.wait_for_status(i1, 'stopped')
+            instance = m.start_instance_by_name('_foo_name_test')
+            self.assertEqual(instance.update(), 'running')
+        finally:
+            i1.terminate()
+
     def test_launch_instance_with_wait(self):
         m = AwsManager(CONF_PATH)
         # print('launching 1')
@@ -62,6 +73,16 @@ class TestAwsManager(unittest.TestCase):
         finally:
             i1.terminate()
         self.assertEqual(m.get_instances(), {})
+
+    def test_launch_new_instance_elastic_ip(self):
+        elastic_ip = '54.68.61.218'
+        m = AwsManager(CONF_PATH)
+        name = '_foo_test_elastic_ip'
+        i1 = m.launch_new_instance(name, elastic_ip=elastic_ip)
+        try:
+            self.assertEqual(i1.ip_address, elastic_ip)
+        finally:
+            i1.terminate()
 
     def test_name_must_be_unique(self):
         m = AwsManager(CONF_PATH)

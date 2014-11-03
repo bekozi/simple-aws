@@ -1,7 +1,15 @@
-[aws]
+[simple-aws]
+# AWS access key identifier
 aws_access_key_id =
+# AWS secret access key
 aws_secret_access_key =
+# default image identifier to launch
 image_id =
+# default instance type to launch
 instance_type =
+# default region to connect to
 region =
+# default security group to use
 security_group =
+# name of key file to use for instance filtering
+key_name =
