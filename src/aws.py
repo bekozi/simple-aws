@@ -1,5 +1,7 @@
 from ConfigParser import SafeConfigParser
+from email.mime.text import MIMEText
 import os
+from boto import ses
 import boto.ec2
 import time
 from boto.ec2.address import Address
@@ -73,6 +75,18 @@ class AwsManager(object):
             instance.update()
 
         return instance
+
+    def send_email(self, fromaddr, recipient, subject, body):
+        msg = MIMEText(body)
+        msg['Subject'] = subject
+        msg['From'] = fromaddr
+        msg['To'] = recipient
+
+        aws_access_key_id = self._cfg['aws_access_key_id']
+        aws_secret_access_key = self._cfg['aws_secret_access_key']
+        conn = ses.connect_to_region(self._cfg['region'], aws_access_key_id=aws_access_key_id,
+                                     aws_secret_access_key=aws_secret_access_key)
+        conn.send_raw_email(msg.as_string())
 
     def start_instance_by_name(self, name, wait=True):
         prev_only_running = self.only_running

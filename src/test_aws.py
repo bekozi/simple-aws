@@ -97,3 +97,12 @@ class TestAwsManager(unittest.TestCase):
                 i2.terminate()
             except UnboundLocalError:
                 pass
+
+    def test_send_email(self):
+        raise unittest.SkipTest('development only')
+        fromaddr = 'benkoziol@gmail.com'
+        recipient = 'benkoziol@gmail.com'
+        subject = 'OCGIS_AWS'
+        body = 'This is some email content.'
+        m = AwsManager(CONF_PATH)
+        m.send_email(fromaddr, recipient, subject, body)
