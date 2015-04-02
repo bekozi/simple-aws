@@ -6,7 +6,7 @@ import time
 from boto import ses
 import boto.ec2
 from boto.ec2.address import Address
-from saws.exc import InstanceNameNotAvailable
+from exc import InstanceNameNotAvailable
 
 
 class AwsManager(object):
