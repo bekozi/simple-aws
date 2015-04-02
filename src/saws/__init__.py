@@ -1,1 +1,1 @@
-from saws import AwsManager
+from manager import AwsManager
