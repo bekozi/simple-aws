@@ -8,13 +8,23 @@ CONF_PATH = os.path.join(os.path.expanduser('~/.config/simple-aws.conf'))
 
 
 class TestAwsManager(unittest.TestCase):
+    PREFIX = '_test_simple_aws_'
 
     @classmethod
     def tearDownClass(cls):
         m = AwsManager(CONF_PATH)
-        assert(m.get_instances() == {})
+        instances = m.get_instances(key='name')
+        for key in instances.iterkeys():
+            assert not key.startswith(cls.PREFIX)
 
-    def test_constructor(self):
+    @property
+    def iname(self):
+        return self.get_instance_name('foo')
+
+    def get_instance_name(self, suffix):
+        return '{0}{1}'.format(self.PREFIX, suffix)
+
+    def test_init(self):
         filtered = [True, False]
         only_running = [True, False]
         conf_path = [None, CONF_PATH]
@@ -22,7 +32,7 @@ class TestAwsManager(unittest.TestCase):
             try:
                 m = AwsManager(c, filtered=f, only_running=a)
                 self.assertIsInstance(m._cfg, dict)
-            except TypeError:
+            except ValueError:
                 if c is None:
                     pass
                 else:
@@ -30,20 +40,20 @@ class TestAwsManager(unittest.TestCase):
 
     def test_get_instance_by_name(self):
         m = AwsManager(CONF_PATH)
-        i1 = m.launch_new_instance('_foo_name_test', wait=True)
+        i1 = m.launch_new_instance(self.iname, wait=True)
         try:
-            instance = m.get_instance_by_name('_foo_name_test')
-            self.assertEqual(instance.tags['Name'], '_foo_name_test')
+            instance = m.get_instance_by_name(self.iname)
+            self.assertEqual(instance.tags['Name'], self.iname)
         finally:
             i1.terminate()
 
     def test_start_instance_by_name(self):
         m = AwsManager(CONF_PATH)
-        i1 = m.launch_new_instance('_foo_name_test', wait=True)
+        i1 = m.launch_new_instance(self.iname, wait=True)
         try:
             i1.stop()
-            AwsManager.wait_for_status(i1, 'stopped')
-            instance = m.start_instance_by_name('_foo_name_test')
+            AwsManager.wait_for_status(i1, 'stopped', pad=20)
+            instance = m.start_instance_by_name(self.iname)
             self.assertEqual(instance.update(), 'running')
         finally:
             i1.terminate()
@@ -51,33 +61,30 @@ class TestAwsManager(unittest.TestCase):
     def test_launch_instance_with_wait(self):
         m = AwsManager(CONF_PATH)
         # print('launching 1')
-        i1 = m.launch_new_instance('_foo_test_1')
-        self.assertEqual(i1.tags['Name'], '_foo_test_1')
+        name1 = self.get_instance_name('foo_test_1')
+        i1 = m.launch_new_instance(name1)
         # print('launching 2')
-        i2 = m.launch_new_instance('_foo_test_2')
+        i2 = m.launch_new_instance(self.get_instance_name('foo_test_2'))
         # print('instances launched')
         try:
-            instances = m.get_instances()
-            self.assertEqual(len(instances), 2)
-            self.assertEqual(set([i.update() for i in instances.values()]), set(['running']))
+            self.assertEqual(i1.update(), 'running')
+            self.assertEqual(i2.update(), 'running')
         finally:
             i1.terminate()
             i2.terminate()
-        self.assertEqual(m.get_instances(), {})
 
     def test_launch_instance_without_wait(self):
         m = AwsManager(CONF_PATH)
-        i1 = m.launch_new_instance('_foo_test_1', wait=False)
+        i1 = m.launch_new_instance(self.iname, wait=False)
         try:
             self.assertNotEqual(i1.update(), 'running')
         finally:
             i1.terminate()
-        self.assertEqual(m.get_instances(), {})
 
     def test_launch_new_instance_elastic_ip(self):
         elastic_ip = '54.68.61.218'
         m = AwsManager(CONF_PATH)
-        name = '_foo_test_elastic_ip'
+        name = self.get_instance_name('foo_test_elastic_ip')
         i1 = m.launch_new_instance(name, elastic_ip=elastic_ip)
         try:
             self.assertEqual(i1.ip_address, elastic_ip)
@@ -86,11 +93,11 @@ class TestAwsManager(unittest.TestCase):
 
     def test_name_must_be_unique(self):
         m = AwsManager(CONF_PATH)
-        self.assertEqual(m.get_instances(), {})
+        name = self.get_instance_name('foo_unique')
         try:
-            i1 = m.launch_new_instance('_foo_test_4', wait=True)
+            i1 = m.launch_new_instance(name, wait=True)
             with self.assertRaises(ValueError):
-                i2 = m.launch_new_instance('_foo_test_4', wait=True)
+                i2 = m.launch_new_instance(name, wait=True)
         finally:
             try:
                 i1.terminate()

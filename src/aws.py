@@ -5,6 +5,7 @@ from boto import ses
 import boto.ec2
 import time
 from boto.ec2.address import Address
+from exc import InstanceNameNotAvailable
 
 
 class AwsManager(object):
@@ -16,6 +17,10 @@ class AwsManager(object):
     """
 
     def __init__(self, conf_path=None, filtered=True, only_running=True, section_title='simple-aws'):
+        if conf_path is None:
+            msg = 'Path to configuration file required.'
+            raise ValueError(msg)
+
         self.conf_path = conf_path or os.path.expanduser(os.getenv('SIMPLEAWS_CONF_PATH'))
         self.filtered = filtered
         self.only_running = only_running
@@ -30,14 +35,27 @@ class AwsManager(object):
             self._conn = self._get_aws_connection_()
         return self._conn
 
-    def get_instances(self):
+    def get_instances(self, key='id'):
+
+        def _get_key_(instance):
+            if key == 'id':
+                ret = instance.id
+            elif key == 'name':
+                try:
+                    ret = instance.tags['Name']
+                except KeyError:
+                    ret = instance.id
+            else:
+                raise NotImplementedError(key)
+            return ret
+
         reservations = self.conn.get_all_reservations()
         instances = [i for r in reservations for i in r.instances]
         instances = {i.id: i for i in instances}
         if self.only_running:
-            instances = {i.id: i for i in instances.values() if i.update() == 'running'}
+            instances = {_get_key_(i): i for i in instances.values() if i.update() == 'running'}
         if self.filtered:
-            instances = {i.id: i for i in instances.values() if self._filter_(i)}
+            instances = {_get_key_(i): i for i in instances.values() if self._filter_(i)}
         return instances
 
     def get_instance_by_name(self, name):
@@ -46,7 +64,7 @@ class AwsManager(object):
             if instance.tags['Name'] == name:
                 ret = instance
         if ret is None:
-            raise ValueError('Name not found.')
+            raise InstanceNameNotAvailable('Name not found.')
         else:
             return ret
 
@@ -104,10 +122,12 @@ class AwsManager(object):
             self.only_running = prev_only_running
 
     @staticmethod
-    def wait_for_status(target, status_target, sleep=1):
+    def wait_for_status(target, status_target, sleep=1, pad=None):
         time.sleep(sleep)
         while target.update() != status_target:
             time.sleep(sleep)
+        if pad is not None:
+            time.sleep(pad)
 
     def _filter_(self, instance):
         if instance.key_name == self._cfg['key_name']:
