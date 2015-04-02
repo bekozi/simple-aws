@@ -1,11 +1,13 @@
 from ConfigParser import SafeConfigParser
 from email.mime.text import MIMEText
 import os
+import time
+
 from boto import ses
 import boto.ec2
-import time
 from boto.ec2.address import Address
-from exc import InstanceNameNotAvailable
+
+from saws.exc import InstanceNameNotAvailable
 
 
 class AwsManager(object):
