@@ -1,1 +1,1 @@
-from manager import AwsManager
+from manager import AwsManager, AwsManagerConfiguration

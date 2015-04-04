@@ -1,15 +1,17 @@
 [simple-aws]
 # AWS access key identifier
-aws_access_key_id =
+aws_access_key =
 # AWS secret access key
-aws_secret_access_key =
+aws_secret_key =
 # default image identifier to launch
-image_id =
+aws_image_id = ami-6ac2a85a
 # default instance type to launch
-instance_type =
+aws_instance_type = t1.micro
 # default region to connect to
-region =
+aws_region = us-west-2
 # default security group to use
-security_group =
+aws_security_group = sosecure
 # name of key file to use for instance filtering
-key_name =
+aws_key_name = sosecure-key
+# path to the key file
+aws_key_path = ~/.ssh/sosecure-key.pem

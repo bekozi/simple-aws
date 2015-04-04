@@ -1,28 +1,59 @@
 import unittest
 import itertools
 import os
+from nose.plugins.attrib import attr
 from saws import AwsManager
+from saws.exc import InstanceNameNotAvailable
+from saws.manager import AwsManagerConfiguration
 
 
 CONF_PATH = os.path.join(os.path.expanduser('~/.config/simple-aws.conf'))
 
+"""
+nosetests -vs --nologcapture -a '!slow,!dev' saws/test
+Attributes:
+ - slow :: slow tests
+ - dev :: development tests
+"""
 
-class TestAwsManager(unittest.TestCase):
-    PREFIX = '_test_simple_aws_'
+class AbstractTestSimpleAws(unittest.TestCase):
+    prefix = '_test_simple_aws_'
 
-    @classmethod
-    def tearDownClass(cls):
-        m = AwsManager(CONF_PATH)
-        instances = m.get_instances(key='name')
-        for key in instances.iterkeys():
-            assert not key.startswith(cls.PREFIX)
+    def __init__(self, *args, **kwargs):
+        self.shared_instance_name = self.get_instance_name('shared')
+        self._shared_instance = None
+        super(AbstractTestSimpleAws, self).__init__(*args, **kwargs)
 
     @property
     def iname(self):
         return self.get_instance_name('foo')
 
-    def get_instance_name(self, suffix):
-        return '{0}{1}'.format(self.PREFIX, suffix)
+    @property
+    def shared_instance(self):
+        if self._shared_instance is None:
+            m = AwsManager(conf_path=CONF_PATH)
+            self._shared_instance = m.launch_new_instance(self.shared_instance_name)
+        return self._shared_instance
+
+    @classmethod
+    def get_instance_name(cls, suffix):
+        return '{0}{1}'.format(cls.prefix, suffix)
+
+    @classmethod
+    def tearDownClass(cls):
+        m = AwsManager(CONF_PATH)
+        try:
+            i = m.get_instance_by_name(cls.get_instance_name('shared'))
+        except InstanceNameNotAvailable:
+            pass
+        else:
+            i.terminate()
+        instances = m.get_instances(key='name')
+        for key in instances.iterkeys():
+            assert not key.startswith(cls.prefix)
+
+
+class TestAwsManager(AbstractTestSimpleAws):
 
     def test_init(self):
         filtered = [True, False]
@@ -31,7 +62,7 @@ class TestAwsManager(unittest.TestCase):
         for f, a, c in itertools.product(filtered, only_running, conf_path):
             try:
                 m = AwsManager(c, filtered=f, only_running=a)
-                self.assertIsInstance(m._cfg, dict)
+                self.assertIsInstance(m.conf, AwsManagerConfiguration)
             except ValueError:
                 if c is None:
                     pass
@@ -39,14 +70,10 @@ class TestAwsManager(unittest.TestCase):
                     raise
 
     def test_get_instance_by_name(self):
-        m = AwsManager(CONF_PATH)
-        i1 = m.launch_new_instance(self.iname, wait=True)
-        try:
-            instance = m.get_instance_by_name(self.iname)
-            self.assertEqual(instance.tags['Name'], self.iname)
-        finally:
-            i1.terminate()
+        instance = self.shared_instance
+        self.assertEqual(instance.tags['Name'], self.shared_instance_name)
 
+    @attr('slow')
     def test_start_instance_by_name(self):
         m = AwsManager(CONF_PATH)
         i1 = m.launch_new_instance(self.iname, wait=True)
@@ -60,18 +87,12 @@ class TestAwsManager(unittest.TestCase):
 
     def test_launch_instance_with_wait(self):
         m = AwsManager(CONF_PATH)
-        # print('launching 1')
         name1 = self.get_instance_name('foo_test_1')
         i1 = m.launch_new_instance(name1)
-        # print('launching 2')
-        i2 = m.launch_new_instance(self.get_instance_name('foo_test_2'))
-        # print('instances launched')
         try:
             self.assertEqual(i1.update(), 'running')
-            self.assertEqual(i2.update(), 'running')
         finally:
             i1.terminate()
-            i2.terminate()
 
     def test_launch_instance_without_wait(self):
         m = AwsManager(CONF_PATH)
@@ -91,25 +112,56 @@ class TestAwsManager(unittest.TestCase):
         finally:
             i1.terminate()
 
+    @attr('slow')
+    def test_launch_new_instance_snapshot(self):
+        m = AwsManager(CONF_PATH)
+        i = m.launch_new_instance(self.get_instance_name('snapshot'), ebs_snapshot_id='snap-310873bc')
+        iid = i.id
+        try:
+            volumes = m.conn.get_all_volumes()
+            should_raise = True
+            for volume in volumes:
+                if volume.attach_data.instance_id == iid:
+                    should_raise = False
+                    break
+            if should_raise:
+                raise AssertionError('volume not attached')
+        finally:
+            i.terminate()
+        m.wait_for_status(i, 'terminated')
+        volumes = m.conn.get_all_volumes()
+        for volume in volumes:
+            if volume.attach_data.instance_id == iid:
+                raise AssertionError('volume not terminated')
+
     def test_name_must_be_unique(self):
         m = AwsManager(CONF_PATH)
-        name = self.get_instance_name('foo_unique')
+        assert self.shared_instance is not None
         try:
-            i1 = m.launch_new_instance(name, wait=True)
             with self.assertRaises(ValueError):
-                i2 = m.launch_new_instance(name, wait=True)
+                i2 = m.launch_new_instance(self.shared_instance_name, wait=True)
         finally:
             try:
-                i1.terminate()
                 i2.terminate()
             except UnboundLocalError:
                 pass
 
+    @attr('dev')
     def test_send_email(self):
-        raise unittest.SkipTest('development only')
         fromaddr = 'benkoziol@gmail.com'
         recipient = 'benkoziol@gmail.com'
         subject = 'OCGIS_AWS'
         body = 'This is some email content.'
         m = AwsManager(CONF_PATH)
         m.send_email(fromaddr, recipient, subject, body)
+
+
+class TestAwsManagerConfiguration(AbstractTestSimpleAws):
+
+    def test_init(self):
+        with self.assertRaises(ValueError):
+            AwsManagerConfiguration()
+        c = AwsManagerConfiguration(conf_path=CONF_PATH)
+        self.assertIsNotNone(c.aws_key_path)
+        c = AwsManagerConfiguration(conf_path=CONF_PATH, aws_key_path='nowhere')
+        self.assertEqual(c.aws_key_path, 'nowhere')
