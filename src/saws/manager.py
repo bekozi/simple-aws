@@ -11,6 +11,7 @@ from exc import InstanceNameNotAvailable
 
 
 SIMPLEAWS_SECTION_TITLE = 'simple-aws'
+SIMPLEAWS_ROOT_USER = 'ubuntu'
 
 
 class AwsManager(object):
@@ -37,6 +38,17 @@ class AwsManager(object):
         if self._conn is None:
             self._conn = self._get_aws_connection_()
         return self._conn
+
+    def do_task(self, taskf, name=None, instance=None, args=None, kwargs=None, user='ubuntu'):
+        from fabric.context_managers import settings
+
+        if instance is None:
+            instance = self.get_instance_by_name(name)
+        args = args or []
+        kwargs = kwargs or {}
+        with settings(host_string=instance.ip_address, disable_known_hosts=True, connection_attempts=10,
+                      user=user, key_filename=self.conf.aws_key_path):
+            taskf(*args, **kwargs)
 
     def get_instances(self, key='id'):
 
@@ -70,6 +82,13 @@ class AwsManager(object):
             raise InstanceNameNotAvailable('Name not found.')
         else:
             return ret
+
+    def get_ssh_command(self, name=None, instance=None, root_user=SIMPLEAWS_ROOT_USER):
+        if instance is None:
+            instance = self.get_instance_by_name(name)
+        root_user = root_user or self.conf.aws_root_user
+        msg = 'ssh -i {0} {1}@{2}'.format(self.conf.aws_key_path, root_user, instance.ip_address)
+        return msg
 
     def launch_new_instance(self, name, image_id=None, instance_type=None, placement=None, elastic_ip=None, wait=True,
                             ebs_snapshot_id=None, ebs_mount_name='/dev/xvdg'):
@@ -181,7 +200,8 @@ class AwsManagerConfiguration(object):
     """
 
     _kwargs = {'aws_access_key': False, 'aws_secret_key': False, 'aws_image_id': True, 'aws_instance_type': True,
-               'aws_region': False, 'aws_security_group': True, 'aws_key_name': True, 'aws_key_path': False}
+               'aws_region': False, 'aws_security_group': True, 'aws_key_name': True, 'aws_key_path': False,
+               'aws_root_user': True}
 
     def __init__(self, **kwargs):
         self.conf_path = kwargs.pop('conf_path', None)

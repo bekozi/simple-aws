@@ -1,6 +1,7 @@
 import unittest
 import itertools
 import os
+from fabric.operations import run
 from nose.plugins.attrib import attr
 from saws import AwsManager
 from saws.exc import InstanceNameNotAvailable
@@ -68,6 +69,13 @@ class TestAwsManager(AbstractTestSimpleAws):
                     pass
                 else:
                     raise
+
+    def test_do_task(self):
+        def _taskf_():
+            run('mkdir -p ~/go/another/way')
+        assert self.shared_instance is not None
+        m = AwsManager(CONF_PATH)
+        m.do_task(_taskf_, name=self.shared_instance_name)
 
     def test_get_instance_by_name(self):
         instance = self.shared_instance
