@@ -42,13 +42,23 @@ class AwsManager(object):
     def do_task(self, taskf, name=None, instance=None, args=None, kwargs=None, user='ubuntu'):
         from fabric.context_managers import settings
 
-        if instance is None:
+        if name is None and instance is None:
+            use_env = True
+        else:
+            use_env = False
+
+        if not use_env and instance is None:
             instance = self.get_instance_by_name(name)
+
         args = args or []
         kwargs = kwargs or {}
-        with settings(host_string=instance.ip_address, disable_known_hosts=True, connection_attempts=10,
-                      user=user, key_filename=self.conf.aws_key_path):
+
+        if use_env:
             taskf(*args, **kwargs)
+        else:
+            with settings(host_string=instance.ip_address, disable_known_hosts=True, connection_attempts=10,
+                          user=user, key_filename=self.conf.aws_key_path):
+                taskf(*args, **kwargs)
 
     def get_instances(self, key='id'):
 
