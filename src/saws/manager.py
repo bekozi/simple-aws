@@ -8,7 +8,7 @@ import boto.ec2
 from boto.ec2.address import Address
 from boto.ec2.blockdevicemapping import BlockDeviceMapping, BlockDeviceType
 from exc import InstanceNameNotAvailable
-
+from saws.exc import RequiredVariableMissing
 
 SIMPLEAWS_SECTION_TITLE = 'simple-aws'
 SIMPLEAWS_ROOT_USER = 'ubuntu'
@@ -242,6 +242,6 @@ class AwsManagerConfiguration(object):
         for k, v in cfg_kwargs.iteritems():
             if v is None and not self._kwargs[k]:
                 msg = 'The configuration key "{0}" may not be None.'.format(k)
-                raise ValueError(msg)
+                raise RequiredVariableMissing(msg)
             else:
                 setattr(self, k, v)

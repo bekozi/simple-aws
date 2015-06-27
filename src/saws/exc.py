@@ -4,3 +4,7 @@ class SimpleAwsException(Exception):
 
 class InstanceNameNotAvailable(SimpleAwsException):
     pass
+
+
+class RequiredVariableMissing(SimpleAwsException):
+    pass
